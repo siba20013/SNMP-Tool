@@ -42,7 +42,6 @@ public class SNMP implements CommandResponder, ResponseListener {
     private ThreadPool threadPool;
 
     LinkedList<ResponseEvent> asyncResponseDeposit = new LinkedList<ResponseEvent>();
-    //HashMap<Integer32, ResponseEvent> asyncResponseDeposit = new HashMap<Integer32, ResponseEvent>();
 
     public SNMP() throws IOException {
         mibLoader = new MibLoader();
@@ -53,8 +52,6 @@ public class SNMP implements CommandResponder, ResponseListener {
         threadPool = ThreadPool.create("Trap", 10);
         dispatcher = new MultiThreadedMessageDispatcher(threadPool,
                 new MessageDispatcherImpl());
-
-        //TRANSPORT
         listenAddress = new UdpAddress(Inet4Address.getByName("0.0.0.0"), 162);
 
         snmp = new Snmp(dispatcher, new DefaultUdpTransportMapping((UdpAddress) listenAddress));
@@ -113,20 +110,7 @@ public class SNMP implements CommandResponder, ResponseListener {
         return pdu.getRequestID();
     }
 
-    /*public ResponseEvent getMultipleAsync() //for broadcast
-    {
-        CommunityTarget target = new CommunityTarget();
-        target.setCommunity(new OctetString(community));
-        target.setAddress(ip);
-        target.setVersion(version);
 
-        //snmp.
-        PDU pdu = new PDU();
-        pdu.setType(PDU.GET);
-        pdu.add(new VariableBinding(oid));
-
-        snmp.send(pdu, target, null, this);
-    }*/
 
     public void set(IpAddress ip, String community, int version, OID oid, Variable value) throws IOException {
         CommunityTarget target = new CommunityTarget();
@@ -141,39 +125,8 @@ public class SNMP implements CommandResponder, ResponseListener {
         snmp.set(pdu, target);
     }
 
-    public ResponseEvent getNext(IpAddress ip, String community, int version, OID oid) throws IOException
-    {
-        CommunityTarget target = new CommunityTarget();
-        target.setCommunity(new OctetString(community));
-        target.setAddress(ip);
-        target.setVersion(version);
-
-        //snmp.
-        PDU pdu = new PDU();
-        pdu.setType(PDU.GETNEXT);
-        pdu.add(new VariableBinding(oid));
-
-        return snmp.getNext(pdu, target);
-    }
-
-    public Integer32 getNextAsync(IpAddress ip, String community, int version, OID oid) throws IOException {
-        CommunityTarget target = new CommunityTarget();
-        target.setCommunity(new OctetString(community));
-        target.setAddress(ip);
-        target.setVersion(version);
-
-        //snmp.
-        PDU pdu = new PDU();
-        pdu.setType(PDU.GETNEXT);
-        pdu.add(new VariableBinding(oid));
-
-        snmp.send(pdu, target, null, this);
-        return pdu.getRequestID();
-    }
-
     public LinkedList<Integer32> discovery(String community, int version) throws IOException {
 
-        //Converte Ip address to an int
         String[] ipString = InetAddress.getLocalHost().getHostAddress().split("\\.");
         int[] ip = new int[4];
         for(int i=0; i<4; i++)
@@ -185,13 +138,12 @@ public class SNMP implements CommandResponder, ResponseListener {
             byteIp |= ip[i];
         }
 
-        //get SubnetMask
         int subnetMask = NetworkInterface.getByInetAddress(Inet4Address.getLocalHost()).getInterfaceAddresses().get(0).getNetworkPrefixLength();
-        //calculate hoe many address there can be in the network
+
         int amountOfAddress = (int) Math.pow(2, 32 - subnetMask);
 
 
-        //Set x bits to 0
+
         byteIp >>= 32 - subnetMask;
         byteIp <<= 32 - subnetMask;
 
@@ -202,7 +154,6 @@ public class SNMP implements CommandResponder, ResponseListener {
         int tmp;
 
 
-        //calculate every possible ip in network and send a getRequest
         for(int i=0; i<amountOfAddress; i++)
         {
             tmp = byteIp;
@@ -223,7 +174,6 @@ public class SNMP implements CommandResponder, ResponseListener {
 
     public LinkedList<Integer32> discovery(String community, int version, long delay) throws IOException {
 
-        //Converte Ip address to an int
         String[] ipString = InetAddress.getLocalHost().getHostAddress().split("\\.");
         int[] ip = new int[4];
         for(int i=0; i<4; i++)
@@ -235,13 +185,10 @@ public class SNMP implements CommandResponder, ResponseListener {
             byteIp |= ip[i];
         }
 
-        //get SubnetMask
+
         int subnetMask = NetworkInterface.getByInetAddress(Inet4Address.getLocalHost()).getInterfaceAddresses().get(0).getNetworkPrefixLength();
-        //calculate hoe many address there can be in the network
         int amountOfAddress = (int) Math.pow(2, 32 - subnetMask);
 
-
-        //Set x bits to 0
         byteIp >>= 32 - subnetMask;
         byteIp <<= 32 - subnetMask;
 
@@ -252,7 +199,7 @@ public class SNMP implements CommandResponder, ResponseListener {
         int tmp;
 
 
-        //calculate every possible ip in network and send a getRequest
+
         for(int i=0; i<amountOfAddress; i++)
         {
             tmp = byteIp;
@@ -271,11 +218,6 @@ public class SNMP implements CommandResponder, ResponseListener {
         return ret;
     }
 
-    public Integer32 discoveryBroadcast(String community, int version) throws IOException
-    {
-        return getAsync(new UdpAddress(Inet4Address.getByName("255.255.255.255"), 161), community, version, new OID("1.3.6.1.2.1.1.5.0")); //OID for name
-    }
-
     public void close() throws IOException {
         snmp.close();
     }
@@ -285,7 +227,6 @@ public class SNMP implements CommandResponder, ResponseListener {
         {
             if(responseEvent != null)
                 this.asyncResponseDeposit.add(responseEvent);
-                //this.asyncResponseDeposit.put(responseEvent.getResponse().getRequestID(), responseEvent);
             else
                 System.out.println("unknown message received");
         }
@@ -310,7 +251,6 @@ public class SNMP implements CommandResponder, ResponseListener {
         return null;
     }
 
-    public void clearResponse() { this.asyncResponseDeposit = new LinkedList<ResponseEvent>(); }
 
     public OID getOidFromName(String name, String mibName) throws IOException, MibLoaderException {
         Mib mib = mibLoader.load(new File(EXTRA_MIB_DIRECTORY + "\\" + mibName));
@@ -383,15 +323,6 @@ public class SNMP implements CommandResponder, ResponseListener {
             ret[i++] = m;
 
         mibLoader.unload(mibFileName);
-        return ret;
-    }
-
-    public String[] getMibFileNames()
-    {
-        File[] fp = (new File(EXTRA_MIB_DIRECTORY)).listFiles();
-        String[] ret = new String[fp.length];
-        for(int i=0; i<fp.length; i++)
-            ret[i] = fp[i].getName();
         return ret;
     }
 }
